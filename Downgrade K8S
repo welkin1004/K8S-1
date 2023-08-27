@@ -1,0 +1,18 @@
+
+
+                 k8s uninstall
+
+kubeadm reset -y
+sudo apt-get purge kubeadm kubectl kubelet kubernetes-cni kube* -y
+sudo apt-get autoremove -y
+sudo rm -rf ~/.kube
+Backup of k8s
+
+apt-mark unhold kubeadm 
+apt-get update -y && apt-get install -y kubeadm=1.23.5-00 --allow-downgrades
+apt-mark hold kubeadm
+kubeadm version
+
+Reboot
+kubectl get pods --all-namespaces
+kubectl get nodes
