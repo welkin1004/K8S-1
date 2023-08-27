@@ -1,0 +1,1508 @@
+
+kubectl logs -f <pod name>                             --to check pod logs
+kubectl logs -c containname podname -n namespacename --tail=10    --if there are multiple container
+kubectl logs --tail=15 podname -n namespacename        --it shows last 15 logs
+kubectl logs --since=5m podname -n namespacename       --it shows last 5 minutes logs
+
+=============================
+kubectl cordon <nodename>        --disabled scheduling pods on that node but your existing pods are not move on another node 
+kubectl uncordon <nodename>      --start scheduling 
+
+kubectl drain <nodename>       --forcefully removing node for maintainance due to replication pod get created on another node 
+whenever u drain node it gets error deamonsets are scheduled on that pod so for that use 
+kubectl drain <nodename> --ignore-daemonsets --force
+
+kubectl drain <nodename> --delete-local-data --ignore-daemonsets --force
+=========================================
+how u upgrade your k8s?
+first check what version is want to update 
+always use 1 or 2 version back of the latest versions
+latest version is 1.26
+we are using 1.24   End of life of this version is 2023/07/28
+then take off ur pods are running on that node then use drain concept on that node
+this is patching work so then u upgrade that node
+like this upgrade the whole nodes
+====================================================
+go to jenkins --> kuberneties deploy plugin --> 
+then give kube config information in jenkins credentials
+
+1] 2nd approach install kubectl in jenkins master server
+2] then switch to jenkins user 
+sudo su -jenkins
+3] create .kube folder in jenkins home directory
+cd ~ 
+mkdir .kube 
+4] create config file & copy config file content from kubernetes cluster master machine & save the content in 
+vi .kube/config 
+5] then execute kubectl command directly in the pipeline
+
+sudo cat /etc/kubernetes/manifests/kube-controller-manager.yaml | grep -i cluster-cidr    --to find the cluster cidr range
+
+etc/passwd
+===================================
+9] #kubectl delete resourcetype resource
+    kubectl delete pod <podname>
+===================================
+10] kubectl label pod firstpod env1=testing               --attach label to pod
+    kubectl describe pod Podname | less
+    kubectl label pod firstpod env1-        --to delete the label 
+
+kubectl label --overwrite pod  firstpod  env1=dev           --when u have to change existing label
+kubectl label pods --all status=xyz                         --attach label to all pods at one time
+kubectl get pods --show-labels
+=================================
+11] kubectl delete pods --all
+
+cat pod2.yml
+
+apiVersion: v1
+kind: Pod
+
+metadata:
+  name: firstpod
+  namespace: demo-namespace
+  labels:
+    env: pod
+spec:
+  containers:
+    - name: containername
+      image: coolgourav147/nginx-custom
+
+
+kubectl create -f pod2.yml --dry-run=client
+kubectl create -f pod2.yml
+kubectl explain pod --recursive | less
+====================================
+12] kubectl edit pod firstpod          --u can edit pod & do changes
+kubectl diff -f pod2.yaml            --check the changes in yml
+=============================
+13]cat pod2.yml
+apiVersion: v1
+kind: Pod
+
+metadata:
+  name: firstpod
+  labels:
+    env: pod
+spec:
+  containers:
+    - name: mycontainer
+      image: coolgourav147/nginx-custom
+      env:
+        - name: myname
+          value: akash
+        - name: myname2
+          value: suraj
+
+kubectl exec firstpod env     --to check environment variables in pod
+docker container exec mycontainer env
+
+===========================================================================================
+14]
+if u give any environment variable in pod during creating & this pod will be deploy on any node & ur on master 
+kubectl exec <pod name> env  
+if there are multiple container in pod then
+kubectl exec <pod name> -c <container name> env 
+
+-->
+kubectl exec <pod name> -c <container name> -it ls bash or /    ---to check content inside container
+===============================================================================================================
+15] docker container run -itd ubuntu sleep 30    that means container 30 sec ke baad delete ho jayega
+
+agar hame yml main dena hai to    args: ["sleep", "160"] 
+=================================================================================
+16]
+same pod main multiple container ho like dev & dbs 
+grep name firstpod.yml    --to check container names
+netstat -nltp             --go inside container & run this it will give ip address or where ur server connection is on 
+netcat -l -p 8000         --u can run this command on both container then u see that woh dono same port listen kr skte hai 
+			    that means that both container use shared network
+
+telnet localhost          -- run this on both container & run command hii it type on another side
+====================================================================================================================
+17] pehle init container hi run hota hai jab woh successfully run hoga tab bakike normal containers run honge
+init container run nahi hua to dusre normal nahin honge
+ agar init container error de raha hai to woh baar-baar recreate hoga
+usecase :
+if u use app & db container in same pod to aapka db server create hone ke baad hi aapka app container create hona chahiye
+
+
+cat > akash.yml
+
+apiVersion: v1
+kind: Pod
+
+metadata:
+  name: myfirstpod
+  labels:
+    name: kkkk
+    name2: bb
+
+spec:
+  containers:
+    - name: yogii
+      image: nginx
+      env:
+        - name: myname                       // --in this u can set the environment variable
+          value: shree
+        - name: yoggii
+          value: okk
+      args: ["sleep", "160"]                 //     --after 160sec container will be down automatically
+
+
+  initcontainers: 
+    - name: yogii
+      image: nginx
+      env:
+        - name: myname        
+          value: shree
+        - name: yoggii
+          value: okk
+      args: ["sleep", "60"]         --ye tabtak up nahin hoga jbtak is pod ke sabhi containers ready nahin honge 
+
+================================================================================================================================
+18] creating pod then create service for that pod so u can access from outside that pod
+
+cat > akash.yaml
+
+apiVersion: v1
+kind: Pod
+
+metadata:
+  name: firstpod
+  labels:
+    newlabel: rahul
+
+spec:
+  containers:
+    - name: firstcontainer
+      image: coolgourav147/nginx-custom
+
+kubectl apply -f akash.yaml
+
+kubectl expose pod firstpod --port=8080 --target-port=80 --name myservice
+                           cluster port                     svc name
+
+kubectl get svc
+curl 10.109.77.225:8080       --check its get redirect or not 
+=============================================================================================================
+
+19] kubectl expose pod <pod name> --port=8080 --target-port=80 --name <service name>     --give the cluster ip
+    curl 0.0.0.0:8080  --is ip pe koii bhi traffic aya to woh clusterip pe frwd kr degi port 80 pe
+
+kubectl expose pod <pod name> --type=NodePort --port=8080 --target-port=80 --name <service name>
+     10.109.77.225:30000
+     10.109.77.226:30000
+     10.109.77.227:30000
+
+so iss pod ko aap kisi bhi node ip se access kr skte ho bas us pod ka node port jo 30000 dalna hai                                 
+======================================================================================================
+
+20] kubectl explain service     --to check api version of your yml service must check before u run the yml
+ always remember ur service is attached to pod & take label reference of pod
+
+kind: Service
+
+metadata: 
+  name: myfirstservice
+  labels:
+    servicelbl: lablename
+
+spec: 
+  type: NodePort               --here u also give type: LoadBalancer/ClusterIP/Multiport/headless
+  ports:
+   - nodePort: 32000
+     port: 9000            ---cluster ip
+     targetport: 80
+  selector:
+    type: app         --when u execute svc it search type of label which attached to your pod... 
+                         services main labels ke liye selectors use hote hai
+
+kubectl get pods --show-labels
+kubectl label pod <pod name> type=app  --to attach label to that pod 
+
+label attach hone ke baad woh service automatically pod se attach ho jaati hai 
+when we attach same label to different pods then svc redirect request to the both pods one by one like ROUND ROBIN
+
+kubectl describe svc <svc name>     --but in company we use this in woh pods ek dusre ke replicas hone chahiye 
+================================================================================================================================
+21]
+replication controller
+kubectl explain rc      --to check api version
+agar kisi pod ko koii issue aaye aur usse tumhe debugg krna hoto uska label change krdo 
+to fir woh rc se bahar aa jayega, aur tumhara traffic us pod ke ander nahii jayega
+
+
+apiVersion: v1
+
+kind: ReplicationController
+
+metadata: 
+  name: firstrc
+  labels:
+    appname: voatingapp             --ye rc ka label hai
+
+spec:                               --this spec is for rc
+  replicas: 3
+  template: 
+    metadata: 
+      name: pod1
+      labels: 
+        type: app                   -- ye pod ka label hai jo svc ke liye use kr skte ho
+    spec:                           --this for container
+      containers:
+        - image: nginx
+          name: firstcontainer 
+
+=======================================================================
+kubectl explain rc --recursive | less
+
+apiVersion: v1
+kind: ReplicationController
+
+metadata: 
+  name: firstrc
+  labels:
+    appname: voatingapp
+
+spec:                               --this spec is for rc
+  replicas: 3
+  selector: 
+    type: app                   --aise aap yml main bhi selectors define kr sakte ho aur woh svc & pod ke label se match hona chahiye 
+  template: 
+    metadata: 
+      name: pod1
+      labels: 
+        type: app
+    spec:                           --this for container
+      containers:
+        - image: nginx
+          name: firstcontainer 
+
+================================================================================================================================
+22] to delete rc
+kubectl get rc
+kubectl delete rc <rc name>     --then all pods which are created with this rc will be deleted
+kubectl delete -f akash.yml     --that delete yml & also delete all pods which  are created with this yml
+kubectl delete rc --cascade=false <rc name>    --then only rc is get del pods remains same
+====================================================================
+23] replication Controller
+agar koii existing pod hai with same label aur usko koiii control nahin kr raha to at the time of replication controller use bydefault adapt krke usko control krta hai
+agar RC kisi pod ko control kr raha ho & agar tumne 2nd RC ko same label diya to woh khudka nya pod banata hai existing ko kuch nahin krega kyunki use koii aur control r raha hai
+
+    kubectl scale rc --replicas=5 <rc name>    --to scale up rc
+    kubectl scale rc --replicas=2 <rc name>    --to scale down rc
+    kubectl edit rc <rc name>        --go inside running pod comfiguration & change it manually then u have to run below replace or apply command
+    kubectl replace -f akash.yml
+    kubectl replace -f akash.yml    --if u want to change in your yml first edit yml then run this
+====================================================================
+24] ReplicaSet
+ kubectl describe pod <pod name> > pod.txt    --u can save the info in txt file
+======================================================================
+25] Replicaset 
+ replicaset is a modified version of rc
+
+RC support equality base selector 
+ReplicaSet support set base selector
+
+==================================================
+Replicaset
+
+apiVersion: v1
+
+kind: ReplicaSet
+
+metadata: 
+  name: firstrc
+  labels:
+    appname: voatingapp
+
+spec:                               --this spec is for rc
+  replicas: 3
+  selector: 
+    matchLabels:
+      app: myapp1                    
+                       
+  template: 
+    metadata: 
+      name: pod1
+      labels: 
+        type: app
+    spec:                           --this for container
+      containers:
+        - image: nginx
+          name: firstcontainer 
+
+
+
+========================================= 
+apiVersion: apiVersion/v1
+
+kind: ReplicaSet
+
+metadata: 
+  name: firstrc
+  labels:
+    appname: voatingapp
+
+spec:                               --this spec is for rc
+  replicas: 3
+  selector: 
+    matchExpressions:
+      - key: app                --this is your label type
+        operator: In            --ye jo niche ke labels value bs usi ko use krke replicaset create kro
+        values: 
+          - myapp1  
+          - myapp2
+      - key: app
+        operator: NotIn         --ye jo niche ke labels value bs usi ko considre mat kro label banate waqt
+        values: 
+          - myapp1
+ 
+  template: 
+    metadata: 
+      name: pod1
+      labels: 
+        type: app
+    spec:                           --this for container
+      containers:
+        - image: nginx
+          name: firstcontainer 
+============================================================================================
+26] Deployment
+agar aapne ek app deploy kiya aur uska naya version aaya to use update krna in zero down time.
+whenever u create a replicaset it doesn't delete old replicaset 
+agar new replicaset create kiya to woh purane replicas zero ho jate hai but replicaset delete nahin hota
+agar  naya wala replicaset agar delete yafir roll back krne wala ho tho ye nayawala pod value zero kr dega aur puranawala replica value up kr ke dega   but isme thoda downtime ata hai 
+
+Rolling Update --> agar 2 replicas banaye ho to woh pehle 2nd replica 1 pod create krega then woh first replica ka pod 1 delete krega
+RollBack --> krne keliye uska ulta first replica ka pod1 up krega then 2nd replica ka pod 1 del krega
+
+===================================================================================================================
+27]  whenewer u create deployment selector create its own label hash= ( to know its own deployment for self reference )
+27] deployment
+
+apiVersion: v1
+
+kind: Deployment
+
+metadata: 
+  name: firstdeployment
+  labels:
+    name: voatingapp
+
+spec:                               --this spec is for rc
+  replicas: 3
+  selector: 
+    matchLabels:
+      app: myapp1                   
+                       
+  template: 
+    metadata: 
+      name: pod1
+      labels: 
+        type: app
+    spec:                           --this for container
+      containers:
+        - image: nginx
+          name: firstcontainer 
+
+
+==============================================================================================================
+
+28] yml ke replicas main changes krne se rollout trigger nahin hota | agar yml main pod ke specifications main koii changes krte hoto tbhi rollout trigger hota hai
+
+RollOut --> means aap jab existing deployment yml main aapka new app update krte ho to use ROllOut kehte hai
+RollBack --> agar rollout krte waqt code main koii issue aaya to hum use rollback krte hain
+rollout trigger tab hota hai jab aap pod ki specifications main changes krte ho   
+ 
+=================================
+28] strategy type 
+to check rollout in detail
+kubectl get rs -o wide
+
+kubectl apply -f <yml> ;watch "kubectl get rs -o wide"
+kubectl rollout status depolyment <pod name> 
+
+apiVersion: v1
+kind: Deployment
+
+metadata: 
+  name: firstdeployment
+  labels:
+    name: voatingapp
+
+spec:                               --this spec is for rc
+  replicas: 3
+  minReadySeconds: 30             --pod jab create ho jayega tab utne time baad woh ready state main dikhega     ye bhi option hai but in real time we use liveness and readyness probes
+  strategy:
+    rollingUpdate: 
+      maxSurge: 0
+      maxUnavailable: 1         --mtlb ek baar main sirf ekhi pod delete hoga aur ekhi naya banega agar 2 karoge to 2 pod down hoge aur 2Up hojaye
+    type: RollingUpdate         --bydefault rollingupdate strategy rahti hai
+
+
+
+  selector: 
+    matchLabels:
+      app: myapp1           --ye jo niche ke labels value bs usii ko use krke replicaset create kro         
+                       
+  template: 
+    metadata: 
+      name: pod1
+      labels: 
+        type: app
+    spec:                           --this for container
+      containers:
+        - image: nginx
+          name: firstcontainer 
+===================================================================
+29] maxSurge -- agar aapne replicas 10 diye hai to 10 pods hamesha running rahenge to fir update kaise hoga?
+    but ab maxSurge: 2 diya to 10+2 =12 pods create honge but usko 10 chahiye the but 12 create hogaye then woh 2 pods delete kr dega
+
+agar humne maxSurge aur maxUnavailable ki value define nahin ki to bydafault value kya rehti hai.
+maxSurge 25%
+maxUnavailable 25%
+======================================================================================================
+30] Rollout
+
+kubectl rollout history deployment <deployment name>       --it will give all rollout history
+========================================
+apiVersion: v1
+kind: Deployment
+metadata: 
+  name: firstdeployment
+  annotations: 
+    kubernetes.io/change-cause: "my custom message"      --to identified roollout sequence we give this massage
+=======================================
+
+if i want to rollback any previous deployment version
+kubectl rollout undo deployment <deployment name>        --it goes latest previous version
+ 
+kubectl rollout undo --to-revision=2 deployment <deployment name>     --rollback any previous deployment version
+
+kubectl rollout history deploy <deployment name>         --it will give all rollout history
+
+kubectl rollout status deployment <deployment name>
+kubectl rollout pause deployment <deployment name>
+kubectl rollout resume deployment <deployment name>
+=============================================================================
+31] Recreate strategy 
+isme kya hota hai hum jab version change krte hai to sab existing pod at a time down ho jate hai aur naye sab sath up hote hai iska use hum development main use krte hain 
+kyuunki rolling update 1down 1up krta hai to usme time jata hai,but rolling startegy production main best hai
+
+kubectl explain --recursive deploy | less
+
+apiVersion: v1
+kind: Deployment
+metadata: 
+  name: firstdeployment
+  labels:
+    name: voatingapp
+
+spec:                               --this spec is for rc
+  replicas: 3
+  strategy: Recreate
+
+=============================================================================
+32] free -m           --to check how much ram is free
+
+=========================================================================
+
+32] Memory Resource request       
+agar us machine me utna memory nahin hai to woh scheduling failed ho jayega 
+use running state main laane ke liye ek naya m/c cluster main attach krdo to woh uspe redirect ho jayega
+
+agar aapne multicontainer pod deploy kiya aur dono container ko resources diye to pod dono ka resources add krega 
+aur check krega ki konsi m/c pe ye fit baithta hai to uspe woh scheduled krega
+
+apiVersion: v1
+kind: Pod
+
+metadata:
+  name: myfirstpod
+  labels:
+    name: kkkk
+    name2: bb
+
+spec:
+  containers:
+    - name: yogii
+      image: nginx
+      resources:
+        requests:
+          memory: 200Mi    --means mb ye RAM hai
+          cpu: 500m        -- ye hard disk hai
+        limits:
+          memory: 500mi
+          cpu: 700m
+
+==================================================================================
+apiVersion: v1
+kind: Pod
+
+metadata:
+  name: myfirstpod
+  namespace: test             --u can define ns name here
+  labels:
+    name: kkkk
+    name2: bb
+
+spec:
+  containers:
+    - name: yogii
+      image: nginx
+      imagePullPolicy: Never   --woh hub pe jaake search nahin krega locally check kr ke install kr dega
+
+====================================================================
+34] kubectl api-resources | grep -i pod         --to check ns resources which supported to pod
+34] Namespaces
+
+kubectl get pods --all-namespaces                  -- to check all the namespaces
+kubectl delete pod <podname> -n <nsName>    --to delete pod from any ns 
+=======================================================================
+35] default ns    -- agar humne kisi pod ko define/specify nahin kiya ki iss pod ko iss ns main create kiya hai to to woh bydefault default ns create hoga
+                     any replicaset/replicacontroller/ 
+kube-public ns   -- in k8s apko koii bhi resources publically available krna hai without authentication to hum usey yahan define karenge
+
+kubectl cluster-info
+curl -k http--jo cluster info command run krne ke baad url aati hai usko node pe jaake curl krna to udhar usko cluster info milta hai
+
+kube-system ns    --
+ 
+same pod name u can't create in same ns but in other ns it possible
+
+kubectl get pods -n <nsname>   
+kubectl config set-context --current --namespace=test 
+
+===============================================================================
+37] kubectl exec -it <podname> -- bash    --to get inside the pod
+
+kubectl exec -n <ns> -it <podname> -- bash    --to go inside any pod from any ns
+
+agar humne 2 ns create but usko same label attach kiya fir kisi bhi ns ke pod ke andar jake
+curl <svc name> --u directly check ur pod is running or not by using service
+curl sevicename.nsname.svc.cluster.local      --by using dns bhi connection check kr skte ho
+
+kubectl delete ns <nsname>
+
+=============================================================================
+38] kubectl describe ns <nsname>   ---to check resource quota
+kubectl explain resorcquota | less
+ 
+resourcequota applicable for all replicaset, replicacontroller, 
+
+there are 2 types
+1] resourcebase quota
+2] compute base quota
+
+
+38] ResourceQuota
+
+1] resource base quota
+ cat > quota.yml
+
+apiVersion: v1
+kind: ResourceQuota 
+metadata: 
+  name: myquota
+spec:
+  hard:
+    pods: 2       --only 2 pods get created in any ns
+
+kubectl apply -f quota.yml --namespace=myns
+kubectl get resourcequotas -n myns
+kubectl describe ns myns
+================================================================================
+39]
+2] compute base quota
+ cat > quota.yml
+apiVersion: v1
+kind: ResourceQuota 
+metadata: 
+  name: myquota
+spec:
+  hard:
+    request.cpu: 0.5
+    requests.memory: 500Mi
+    limits.cpu: 1
+    limits.memory: 1Gi
+
+pod ke yml main bhi resources & limits define krna pdta hai 
+agar pod ke yml main aap sirf limits add krenge aur resource nahin kroge to kya hoga?
+to woh aap ke limits ko hi resource maan lega aur usi ko execute krega... limit ke values ko same resource main define krega
+
+==============================================================================
+40] LimitRange   --ye range dete time pod main resource and limits nahin dete ye ns mai dete hai to uske hisab sehi container create hote hai 
+
+cat > quota.yml
+apiVersion: v1
+kind: LimitRange
+metadata: 
+  name: myquota
+spec:
+  hard:
+    pods: 10             ---u can use both at a time
+    request.cpu: 0.5
+    requests.memory: 500Mi
+    limits.cpu: 1
+    limits.memory: 1Gi
+======================================================
+41] kubectl get limits -n myns
+
+vi limits.yml
+apiVersion: v1
+kind: LimitRange
+metadata: 
+  name: testlimit
+  namespace: myns
+spec:
+  limits:
+    - default:            --higher limit
+        cpu: 200m     
+        memory: 500m
+      defaultRequest: 
+        cpu: 100m
+        memory: 250m        --lower limit of pod creation
+      type: Container
+
+kubectl describe ns myns
+agar aapne limit range diya hai to agar pod yml main aap resource aur limits nahin doge to fir bhi pod create hoga
+========================================================
+
+vi limits.yml
+
+apiVersion: v1
+kind: LimitRange
+metadata: 
+  name: testlimit
+  namespace: myns
+spec:
+  limits:
+    - default:            --higher limit
+        cpu: 200m     
+        memory: 500m
+      defaultRequest: 
+        cpu: 100m
+        memory: 250m        --lower limit of pod creation
+      min:
+        cpu: 80m
+        memory: 250Mi
+      max: 
+        cpu: 700m
+        memory: 700Mi
+      type: Container
+===============================================================================
+43] ConfigMap
+
+kubectl get cm
+kubectl create cm cm1 --from-literal=database_ip="192.168.0.4"
+kubectl describe cm cm1
+
+kubectl create cm cm2 --from-literal=database_ip="192.168.0.4" --from-literal=database_username="root" 
+kubectl describe cm cm2
+
+===========================
+44] 
+vi application.properties
+#database details
+database_ip="192.0.0.0"
+database_password="mysupersecretpassword"
+database_username="akash"
+
+#super_admin details
+username="yogii"
+password=superadminpassword
+
+kubectl create cm cm4 --from-file=application.properties
+kubectl get cm
+kubectl describe cm cm3
+==============================
+cat > application.propertise
+#database details
+database_ip="192.0.0.0"
+database_password="mysupersecretpassword"
+database_username="akash"
+
+cat > superadmin.properties
+#super_admin details
+username="yogii"
+password=superadminpassword
+
+u can merge 2 files 
+kubectl create cm cm5 --from-file=application.properties --from-file=superadmin.properties 
+kubectl describe cm cm5
+
+=============================================
+45] u can add a whole folder there are multiple config files 
+kubectl create cm filecm10 --from-file=properties/
+
+=======================================
+46] add environment variable in config file
+
+vi env.sh
+
+#this is my environment variable
+variable1=value1
+variable2=value2
+variable3=value3
+variable4=value4
+
+there are 2 types to create configfile
+kubectl create cm envcm --from-env-file=env.sh    --it creates key value pair 
+kubectl create cm envcm --from-file=env.sh     --isme pura content create hota hai uska name uske file ka name le leta hai bydefault
+
+==============================================
+47] configmap yml
+
+kubectl create cm cm4 --from-file=application.properties --dry-run -o yaml > cm.yaml       --u can store this file in yaml
+
+apiVersion: v1
+data:
+  key1: value1
+  key2: value2
+  key3: value3
+  key4: value4
+kind: ConfigMap
+metadata:
+  name: configmapfromfile
+
+kubectl apply -f cm
+
+================================
+if there are multiple files 
+kubectl create cm cm4 --from-file=application.properties --from-file=superadmin.properties --dry-run -o yaml > cm.yaml       --this is another way to create yaml file through normal files
+
+apiVersion: v1
+data:
+  key1: |             --this is file1 
+    this is keyone
+    kjkn
+
+  key2: |             --this is file2
+    this is key2
+    kjk
+
+kind: ConfigMap
+metadata:
+  name: configmapfromfile2
+
+kubectl apply -f cm
+
+=======================================================
+48] Inject Configmap in Yaml
+
+pod madhe jaun 'env' command run krne mnje environment variables pod madhe distat
+
+apiVersion: v1
+kind: Pod
+metadata: 
+  name: firstpod
+spec:
+  containers: 
+    - image: coolgaurav147/nginx-custom
+      name: firstcontainer
+      imagePullPolicy: Never
+      env: 
+        - name: variableFromConfigMap
+          valueFrom:  
+            configMapKeyRef: 
+              key: variable2              --key value of variable
+              name: envcm                 --variablename from file
+
+==========================================================
+for multiple variables
+
+apiVersion: v1
+kind: Pod
+metadata: 
+  name: firstpod
+spec:
+  containers: 
+    - image: coolgaurav147/nginx-custom
+      name: firstcontainer
+      imagePullPolicy: Never
+      env: 
+        - name: variableFromConfigMap
+          valueFrom:  
+            configMapKeyRef: 
+              key: variable2              --key value of variable
+              name: envcm                 --variablename from cm
+
+        - name: variableFromConfigMap2
+          valueFrom:  
+            configMapKeyRef: 
+              key: env.sh              --key value of variable
+              name: fromfilecm    
+
+=========================================================================
+49] take environment whole file 
+
+apiVersion: v1
+kind: Pod
+metadata: 
+  name: firstpod
+spec:
+  containers: 
+    - image: coolgaurav147/nginx-custom
+      name: firstcontainer
+      imagePullPolicy: Never
+      envFrom: 
+        - configMapRef: 
+            name: envcm        --filename
+
+================================================================
+50] env var enjecting through volume mounting/mapping
+
+apka jo keyname hoga us naam se uska file create hoga aur usme value create hoga
+
+apiVersion: v1
+kind: Pod
+metadata: 
+  name: firstpod
+spec:
+  containers: 
+    - image: coolgaurav147/nginx-custom
+      name: firstcontainer
+      imagePullPolicy: Never
+      volumeMounts:
+        - name: test
+          mountPath: "/config"        --iss naam ka folder create hoga pod main usme variables dikhenge
+          readOnly: true
+  volumes:
+    - name: test
+      configMap:
+            name: envcm           --filename
+
+====================================================================
+
+agar us volume ke file mese specific variables lene hoto 
+
+apiVersion: v1
+kind: Pod
+metadata: 
+  name: firstpod
+spec:
+  containers: 
+    - image: coolgaurav147/nginx-custom
+      name: firstcontainer
+      imagePullPolicy: Never
+      volumeMounts:
+        - name: test
+          mountPath: "/config"        --iss naam ka folder create hoga pod main usme variables dikhenge
+          readOnly: true
+  volumes:
+    - name: test
+      configMap:
+            name: envcm 
+            items:
+            - key: variable1                
+              path: "var1here"          --ur file name get created in pod aur isme value aajayegi variable1 ki
+            - key: variable2
+              path: "var2here"
+
+==========================================================================
+51] Secrets 
+secrets maximum size is 1Mb **
+u cannot inject secrets & configmap on another ns pod...if u inject in given ns **
+there are 3 types of secrets
+1] docker-registry
+2] generic
+3] tls 
+
+aap agar kisi word ko secrets main save krte hoto woh base64 main convert hoke save hota hai
+
+kubectl create secret generic --help | less
+
+kubectl create secret generic firstsecret --from-literal=name=gaurav
+kubectl get secrets
+
+kubectl describe secret firstsecret
+
+ in secret file ==@industry they save ssh key file
+
+echo -n "gaurav" | base64          --to convert any secret into coded msg
+
+kubectl create secret generic filesec --from-file=application.properties        --create secret from file
+kubectl get secrets -o yaml filesec       --to check secret file
+========================================================
+52] from environment file create secret
+
+kubectl create secret generic fromenvfile --from-env-file=env.sh
+kubectl get secrets fromenvfile -o yaml
+
+kubectl create secret generic mysec --from-literal=dbpassword=akash123 --dry-run='client' -o yaml > secrets.yaml
+========================
+echo -n "mysecretpassword" | base64
+
+echo "c3VwZXJldHBhc3N3b3Jk" | base64 --decode
+
+or
+
+base64 -d -i encoded_file.txt
+
+===============================================================================================
+53] secret inject in yml 
+
+pod main jaake dekhe value to woh hame decode hoke milti hai
+
+apiVersion: v1
+kind: Pod
+metadata: 
+  name: firstpod
+spec:
+  containers: 
+    - image: coolgaurav147/nginx-custom
+      name: firstcontainer
+      imagePullPolicy: Never
+      env:
+        - name: myvariable
+          valuefrom:
+            secretKeyRef:
+              key: variable1
+              name: myenvsec 
+
+==========================================================================
+inject whole file as a env variable file in yml 
+
+apiVersion: v1
+kind: Pod
+metadata: 
+  name: firstpod
+spec:
+  containers: 
+    - image: coolgaurav147/nginx-custom
+      name: firstcontainer
+      imagePullPolicy: Never
+      envFrom:
+        - secretRef:
+            name: myenvsec           --secretfile mentioned
+
+=========================================================================
+54] inject whole file as a file in yml --volumethrough
+
+apiVersion: v1
+kind: Pod
+metadata: 
+  name: firstpod
+spec:
+  containers: 
+    - image: coolgaurav147/nginx-custom
+      name: firstcontainer
+      imagePullPolicy: Never
+      volumeMounts:
+        - mountPath: /secrets
+          name: test sec
+  volumes: 
+    - name: testsec
+      secret:
+        secretName: myenvsec 
+
+==================================================================================
+
+55] Taint & Toleration 
+
+jab bhi taint ki baat aaye to samaz jana ki woh node pe laga hai
+aur jo tolerate kr rha hai woh apna pod hai...
+agar koi pod diye huye taint ko tolerate nahin kr paaya to woh scheduled nahin hoga...
+
+NoSchedule means is node pe koii bhi pod schedule nahin hoga agar krna hai to use yml main specification dena pdta hai
+
+kubectl taint node worker01 mysize=large:NoSchedule             
+
+to execute ur pod on taint node so give them given specification
+
+apiVersion: v1
+kind: Pod
+metadata: 
+  name: firstpod
+spec:
+  containers: 
+    - image: coolgaurav147/nginx-custom
+      name: firstcontainer
+      imagePullPolicy: Never
+  tolerations:
+    - effect: "NoSchedule"
+      key: "mysize"
+      operator: "Equal"
+      value: "large"
+
+========================================
+56] 
+NoExecute means agar wahan pe koii pod scheduled mtlb jo pehle se running hai to use woh terminate krke naye pod kohi sirf execute krega
+
+kubectl taint node worker01 mysize=large:NoSchedule, PrefereNoSchedule , NoExecute 
+kubectl taint node worker01 mysize-        --untaint 
+
+=============================================
+57] **
+
+tolerations:
+    - effect: ""                      --agar effect nahin diya hai to woh teeno maise kisi bhi taint ko tolerate kr payega
+      key: "mysize"
+      operator: "Equal"
+      value: "large"
+
+
+tolerations:
+    - effect: "NoSchedule"
+      key: "mysize"
+      value: "large"          --agar aap operator nahin dete hain to woh bydefault equal operator utha leta hain 
+
+
+tolerations:
+    - effect: "NoSchedule"
+      key: "mysize"
+      value: "Exists"         --ye sirf check krega ki mysize wala taint wahan ha kya hoga to woh kisi bhi value ko tolerate kr payega
+
+
+tolerations:
+    - effect: "NoSchedule"
+      key: ""
+      operator: "Exists"          --apka pod sab kuch tolerate kr skta hai
+
+
+tolerations:
+    - effect: "NoSchedule"
+      key: "mysize"
+      operator: "Equal"
+      value: "vjjhvjh"        --dono worker node pe agar taint lagaya ho aur uska value kisi se match nahin ho raha hai to woh pending state main hi rhega 
+
+
+tolerations:
+    - effect: ""
+      key: ""
+      operator: "Exists"          --aapka pod sab kuch tolerate kr skta hai
+
+
+======================================================
+59] NodeSelector   --it is use to scheduled pod on node 
+
+kubectl get nodes --show-labels
+kubectl label nodes worker01 size=large       --attach label to node 
+
+
+apiVersion: v1
+kind: Pod
+metadata: 
+  name: firstpod
+spec:
+  containers: 
+    - image: coolgaurav147/nginx-custom
+      name: firstcontainer
+      imagePullPolicy: Never
+  nodeSelector:
+    size: "large" 
+
+agar galt label diya to woh pending state main chala jayega then u have to assign that label to node then it automatically assign ho jayega
+
+================================================== 
+60] NodeAffinity
+
+soft scheduling --hum pod ko batate hai is particular node pe jaake execute hoja agar waha pe label attach nahin hai to dusre kisi pe execute hoja 
+hard scheduling --jo label diya hai usi pehi execute hona hai
+
+1] soft Scheduling
+
+apiVersion: v1
+kind: Pod
+metadata: 
+  name: firstpod
+spec:
+  containers: 
+    - image: coolgaurav147/nginx-custom
+      name: firstcontainer
+      imagePullPolicy: Never
+  affinity:
+    nodeaffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - preference:
+            matchexpressions:
+              - key: size
+                operator: In       --In, NotIn, 
+                values:
+                  - small         --large, extralarge
+            weight: 1
+
+==============================================================
+2] Hard Scheduling
+
+apiVersion: v1
+kind: Pod
+metadata: 
+  name: firstpod
+spec:
+  containers: 
+    - image: coolgaurav147/nginx-custom
+      name: firstcontainer
+      imagePullPolicy: Never
+  affinity:
+    nodeaffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - preference:
+            matchexpressions:
+              - key: size
+                operator: In       --In, NotIn, Exist, DoesNotExist
+                values:
+                  - extralarge      --large
+
+==========================================================
+63] Volume Mapping
+
+apiVersion: v1
+kind: Pod
+metadata: 
+  name: firstpod
+spec:
+  containers: 
+    - image: coolgaurav147/nginx-custom
+      name: firstcontainer
+      imagePullPolicy: Never
+      volumeMounts:
+      - mountPath: /data       --container ke andar ka folder
+        name: first-volume
+        
+  volumes:
+    - name: first-volume
+      emptyDir: {}
+
+========================================================
+64]
+
+apiVersion: v1
+kind: Pod
+metadata: 
+  name: firstpod
+spec:
+  containers: 
+    - image: coolgaurav147/nginx-custom
+      name: firstcontainer
+      imagePullPolicy: Never
+      volumeMounts:
+      - mountPath: /data       --container ke andar ka folder
+        name: first-volume
+        
+  volumes:
+    - name: first-volume
+      hostPath:
+        path: /tmp/data           --aplya ubuntu machine cha path 
+
+========================================================
+65] EBS volume Support
+
+eksctl create cluster --name akash-cluster --node-type t2.micro --region ap-south-1  --node-zone ap-south-1a 
+
+apiVersion: v1
+kind: Pod
+metadata: 
+  name: firstpod
+spec:
+  containers: 
+    - image: coolgaurav147/nginx-custom
+      name: firstcontainer
+      imagePullPolicy: Never
+      volumeMounts:
+      - mountPath: /data       --container ke andar ka folder
+        name: first-volume
+        
+  volumes:
+    - name: first-volume
+      awsElasticBlockStore:
+        volumeId: "  "    --ebs volumeid
+      fsType: ext4
+============================================
+      *** VPA ***
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx
+  labels:
+    app: nginx
+spec:
+  selector:
+    matchLabels:
+      app: nginx
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+        - name: nginx
+          image: nginx # or just image: nginx
+          resources:
+            limits:
+              cpu: 10m
+              memory: 10Mi
+            requests:
+              cpu: 5m
+              memory: 5Mi
+          ports:
+            - containerPort: 80
+
+==============================================
+apiVersion: autoscaling.k8s.io/v1beta2
+kind: VerticalPodAutoscaler
+metadata:
+  name: nginx-vpa
+spec:
+  targetRef:
+    apiVersion: "apps/v1"
+    kind: Deployment
+    name: nginx
+  updatePolicy:
+     updateMode: “off”           --u can set on Auto
+
+if the update mode is set to off it will only give us the recommendations but it will not update the pods in the deployments automatically.
+That means if its off then load goes up it will increase in same pod beyond the limits but it not create new pods----- memory limit is going up 
+=================================================================================
+
+        ***HPA***
+
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: hpa-test
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: hpa-test
+  minReplicas: 1
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 50
+
+
+============================================================================
+           ***INGRESS**
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-backend
+  namespace: java2days
+
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: nginx-server
+  template:
+    metadata:
+      labels:
+        app: nginx-server
+    spec:
+      containers:
+        - name: nginx-server
+          image: nginxdemos/hello
+          ports:
+            - containerPort: 80
+              name: server-port
+
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 15
+            periodSeconds: 15
+            timeoutSeconds: 3
+
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 15
+            periodSeconds: 15
+            timeoutSeconds: 3
+
+---
+
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: nginx-ingress
+  namespace: java2days
+spec:
+  rules:
+    - http:
+        paths:
+          - backend:
+              serviceName: nginx-service
+              servicePort: 80
+            path: /*
+
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-service
+  namespace: java2days
+spec:
+  ports:
+    - port: 80
+      protocol: TCP
+      targetPort: 80
+      name: http
+  selector:
+    app: nginx-server
+  type: NodePort
+
+===========================================================
+         **Port Forwarding **
+I am assuming my pod name is nats-depl-855d477f4d-xgbd7, and it is accessiable via a cluster IP service
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: nats-srv
+spec:
+  selector:
+    app: nats
+  ports:
+    - name: client
+      protocol: TCP
+      port: 4222
+      targetPort: 4222
+
+now to establish the connection run the below command:
+
+kubectl port-forward <pod-name> <locahost-port>:<pod-port>
+kubectl port-forward nats-depl-855d477f4d-xgbd7 5000:4222
+5000: is the port of my local machine
+
+4222 : is the port of the pod I want to get access
+
+=========================================================================
+            ***POD DISRUPTION BUDGET***
+
+https://www.youtube.com/watch?v=vqDDwPpe2Po
+https://github.com/DeekshithSN/kubernetes/tree/master/
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    run: nginx
+  name: nginx-deploy
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      run: nginx
+  template:
+    metadata:
+      labels:
+        run: nginx
+    spec:
+      containers:
+      - image: nginx
+        name: nginx
+
+---
+apiVersion: policy/v1beta1
+kind: PodDisruptionBudget
+metadata:
+  name: pdbdemo
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      run: nginx
+
+======================================================================
+         ***nfs with persistent volume ****
+
+https://github.com/DeekshithSN/kubernetes/tree/master/volume/nfs-pv
+
+NFS Server :
+- sudo apt update
+- sudo apt install nfs-kernel-server
+- sudo mkdir -p /mnt/nfs_share
+- sudo chown -R nobody:nogroup /mnt/nfs_share/
+
+- sudo vim /etc/exports
+- insert this content to /etc/exports 
+    /mnt/nfs_share  *(rw,sync,no_subtree_check)
+  if you face any security issues then use below content 
+   /mnt/nfs_share  *(rw,sync,no_subtree_check,insecure)
+- sudo exportfs -a
+- to check exports 
+     sudo exportfs -v or showmount -e 
+- sudo systemctl restart nfs-kernel-server
+
+
+NFS Client ( in worker nodes ) :
+- sudo apt install nfs-common
+- showmount -e nfs-server-ip
+- To verify the mount 
+    mount -t nfs ipaddress:/mnt/nfs_share/ /mnt
+    mount | grep nfs_share
+    umount /mnt
+
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    run: nginx
+  name: nginx-deploy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      run: nginx
+  template:
+    metadata:
+      labels:
+        run: nginx
+    spec:
+      volumes:
+      - name: www
+        persistentVolumeClaim:
+          claimName: pvc-nfs-pv1
+      containers:
+      - image: nginx
+        name: nginx
+        volumeMounts:
+        - name: www
+          mountPath: /usr/share/nginx/html
+
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-nfs-pv1
+  labels:
+    type: local
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteMany
+  nfs:
+    server: nfs_server_ip
+    path: "/mnt/nfs_share"
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pvc-nfs-pv1
+spec:
+  storageClassName: manual
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 500Mi
+======================================================
