@@ -1,0 +1,36 @@
+tolerations:
+    - effect: ""                      --agar effect nahin diya hai to woh teeno maise kisi bhi taint ko tolerate kr payega
+      key: "mysize"
+      operator: "Equal"
+      value: "large"
+
+
+tolerations:
+    - effect: "NoSchedule"
+      key: "mysize"
+      value: "large"          --agar aap operator nahin dete hain to woh bydefault equal operator utha leta hain 
+
+
+tolerations:
+    - effect: "NoSchedule"
+      key: "mysize"
+      value: "Exists"         --ye sirf check krega ki mysize wala taint wahan ha kya hoga to woh kisi bhi value ko tolerate kr payega
+
+
+tolerations:
+    - effect: "NoSchedule"
+      key: ""
+      operator: "Exists"          --apka pod sab kuch tolerate kr skta hai
+
+
+tolerations:
+    - effect: "NoSchedule"
+      key: "mysize"
+      operator: "Equal"
+      value: "vjjhvjh"        --dono worker node pe agar taint lagaya ho aur uska value kisi se match nahin ho raha hai to woh pending state main hi rhega 
+
+
+tolerations:
+    - effect: ""
+      key: ""
+      operator: "Exists"          --aapka pod sab kuch tolerate kr skta hai
