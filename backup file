@@ -1,0 +1,60 @@
+if ur using eks then it will take backup automatic but in selfmade cluster u have to did it manually
+
+export ETCDCTL_API=3
+
+etcdctl snapshot save --endpoints=127.0.0.1:2379 \
+--cacert=/etc/kubernetes/pki/etcd/ca.cert \
+--cert=/etc/kubernetes/pki/etcd/server.crt \
+--key=/etc/kubernetes/pki/etcd/server.key \
+/home/ubuntu/myk8scluster.db
+
+etcdctl snapshot restore --data-dir=/var/lib/etcd-new-data /
+home/ubuntu/myk8scluster.db
+
+================================================================
+we have to backup all the TLS certificates, keys, which associated with cluster components
+secondly we have to backup subsequently & restore etcd server of the system 
+
+1] where all the certificates 
+/etc/kubernetes/pki/etcd/        --in this folder all certificates are present
+
+mkdir backup-certs
+cp -r /etc/kubernetes/pki backup-certs     --the entire diectory is copied 
+
+
+Now we have to create a snapshot of etcd server 
+for that we have to install etcd control server 
+go get github.com/coreos/etcd/etcdctl
+
+then check etdctl command is working type---  etcdctl
+
+for saving snapshot use etcd api 
+
+ETCDCTL_API=3 \
+etcdctl snapshot save backup-certs/snapshot.db \
+--endpoints=https://127.0.0.1:2379 \
+--cacert=/etc/kubernetes/pki/etcd/ca.cert \
+--cert=/etc/kubernetes/pki/etcd/healthcheck-client.crt \
+--key=/etc/kubernetes/pki/etcd/healthcheck-client.key
+
+after that snapshot is get save
+
+kubeadm reset -f      --the whole cluster get reset 
+
+now restore all certificates 
+cp -r backup-certs/pki /etc/kubernetes/
+
+Now restore etcdctl server  
+
+ETCDCTL_API=3 \
+etcdctl snapshot restore backup-etcd/snapshot.db  
+
+when we restore it restore in specific path in directory
+ls default.etcd/member
+
+we have to copy that directory or move it inside that the member dir 
+mv default.etcd/member /var/lib/etcd/
+
+Now finally initialise the cluster by kubeadm init command 
+
+kubeadm init --ignore-preflight-errors=DirAvailable--var-lib-etcd         --that means while cluster is get initialize it should ignore data for etcd server & should take that from that dir 
