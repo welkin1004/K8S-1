@@ -1,0 +1,77 @@
+       k8s uninstall
+
+kubeadm reset -y
+sudo apt-get purge kubeadm kubectl kubelet kubernetes-cni kube* -y
+sudo apt-get autoremove -y
+sudo rm -rf ~/.kube
+
+Docker Installation
+
+apt update -y &&  apt upgrade -y && apt update -y
+sudo apt update -y
+sudo apt install -y docker.io
+sudo systemctl enable docker.service
+sleep 2
+
+>>Kubernetes Installation both server
+
+sudo hostnamectl set-hostname k8s-master
+sudo apt install apt-transport-https curl -y
+curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add
+echo "deb https://apt.kubernetes.io/ kubernetes-xenial main" >> ~/kubernetes.list
+sudo mv ~/kubernetes.list /etc/apt/sources.list.d
+sleep2
+sudo apt update -y
+sudo apt install -y kubelet kubeadm kubectl 
+sleep 2
+sudo apt-get install -y kubernetes-cni
+sudo swapoff -a 
+
+lsmod | grep br_netfilter
+sudo modprobe br_netfilter
+sudo sysctl net.bridge.bridge-nf-call-iptables=1
+sudo mkdir /etc/docker
+cat <<EOF | sudo tee /etc/docker/daemon.json
+{ "exec-opts": ["native.cgroupdriver=systemd"],
+"log-driver": "json-file",
+"log-opts":
+{ "max-size": "100m" },
+"storage-driver": "overlay2"
+}
+EOF
+
+
+
+>> Kubernetes Installation Master Node
+sleep 2
+sudo kubeadm init --pod-network-cidr=10.244.0.0/16
+sleep 2
+mkdir -p $HOME/.kube
+sleep 2
+sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+sleep 2
+sudo chown $(id -u):$(id -g) $HOME/.kube/config
+sleep2
+
+sudo ufw allow 6443
+sudo ufw allow 6443/tcp
+
+kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+sleep 2
+kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/k8s-manifests/kube-flannel-rbac.yml
+
+kubectl get pods --all-namespaces
+
+kubectl get componentstatus
+
+**********************************************************************************************************************
+Dashboard Setup
+
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/v2.5.0/aio/deploy/recommended.yaml
+kubectl edit service/kubernetes-dashboard -n kubernetes-dashboard
+
+Remove Taints
+kubectl describe node k8s-master | grep Taints
+
+kubectl taint node k8s-master node-role.kubernetes.io/master:NoSchedule-
+kubectl taint node k8s-master node-role.kubernetes.io/control-plane:NoSchedule-
